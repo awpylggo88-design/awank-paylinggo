@@ -1,0 +1,120 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidInventoryItem(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 40 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.locationRack is string && data.locationRack.size() >= 1 && data.locationRack.size() <= 60 &&
+             data.quantity is int && data.quantity >= 0 && data.quantity <= 1000000000 &&
+             data.minStock is int && data.minStock >= 0 && data.minStock <= 1000000000 &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 30 &&
+             data.unitPrice is int && data.unitPrice >= 0 && data.unitPrice <= 1000000000000 &&
+             data.supplierName is string && data.supplierName.size() <= 100 &&
+             data.notes is string && data.notes.size() <= 500 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStockMovement(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 128 &&
+             data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 120 &&
+             data.itemSku is string && data.itemSku.size() >= 1 && data.itemSku.size() <= 40 &&
+             data.type is string && data.type in ['IN', 'OUT', 'ADJUST'] &&
+             data.quantityChanged is int && data.quantityChanged >= 0 && data.quantityChanged <= 1000000000 &&
+             data.previousStock is int && data.previousStock >= 0 && data.previousStock <= 1000000000 &&
+             data.newStock is int && data.newStock >= 0 && data.newStock <= 1000000000 &&
+             data.referenceDoc is string && data.referenceDoc.size() <= 80 &&
+             data.partyName is string && data.partyName.size() <= 100 &&
+             data.notes is string && data.notes.size() <= 500 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId}/items/{itemId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidId(itemId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'sku', 'name', 'category', 'locationRack',
+                         'quantity', 'minStock', 'unit', 'unitPrice',
+                         'supplierName', 'notes', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'sku', 'name', 'category', 'locationRack',
+                         'quantity', 'minStock', 'unit', 'unitPrice',
+                         'supplierName', 'notes', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidInventoryItem(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidId(itemId) &&
+                       isValidInventoryItem(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'sku', 'name', 'category', 'locationRack',
+                         'quantity', 'minStock', 'unit', 'unitPrice',
+                         'supplierName', 'notes', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(itemId);
+    }
+
+    match /users/{userId}/movements/{movementId} {
+      allow get: if isOwner(userId) && isValidId(userId) && isValidId(movementId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidId(movementId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'itemId', 'itemName', 'itemSku', 'type',
+                         'quantityChanged', 'previousStock', 'newStock',
+                         'referenceDoc', 'partyName', 'notes', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'itemId', 'itemName', 'itemSku', 'type',
+                         'quantityChanged', 'previousStock', 'newStock',
+                         'referenceDoc', 'partyName', 'notes', 'createdAt'
+                       ]) &&
+                       isValidStockMovement(incoming(), userId);
+
+      // Movements are immutable audit logs once created
+      allow update: if false;
+
+      allow delete: if isOwner(userId) && isValidId(userId) && isValidId(movementId);
+    }
+  }
+}

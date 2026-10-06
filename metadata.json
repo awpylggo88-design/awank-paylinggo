@@ -1,0 +1,6 @@
+{
+  "name": "GudangPintar",
+  "description": "Aplikasi manajemen gudang, inventaris stok barang, dan pencatatan mutasi keluar-masuk barang secara real-time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

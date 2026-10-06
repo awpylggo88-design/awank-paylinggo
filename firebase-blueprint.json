@@ -1,0 +1,165 @@
+{
+  "entities": {
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Represents a warehouse stock item with SKU, rack location, pricing, and quantity.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the authenticated warehouse owner."
+        },
+        "sku": {
+          "type": "string",
+          "description": "Unique product code or SKU (e.g., BRG-001)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Product name."
+        },
+        "category": {
+          "type": "string",
+          "description": "Warehouse product category (e.g., Elektronik, Bahan Baku, Kemasan)."
+        },
+        "locationRack": {
+          "type": "string",
+          "description": "Warehouse shelf/zone location (e.g., Zona A - Rak 02)."
+        },
+        "quantity": {
+          "type": "integer",
+          "description": "Current stock quantity in warehouse."
+        },
+        "minStock": {
+          "type": "integer",
+          "description": "Minimum stock alert threshold."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement (e.g., Pcs, Box, Kg, Karton, Pallet)."
+        },
+        "unitPrice": {
+          "type": "integer",
+          "description": "Unit price in IDR."
+        },
+        "supplierName": {
+          "type": "string",
+          "description": "Primary supplier or vendor name."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional warehouse notes or storage instructions."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when item was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "sku",
+        "name",
+        "category",
+        "locationRack",
+        "quantity",
+        "minStock",
+        "unit",
+        "unitPrice",
+        "supplierName",
+        "notes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Immutable record of an inbound, outbound, or opname stock movement.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the authenticated user who recorded the movement."
+        },
+        "itemId": {
+          "type": "string",
+          "description": "Reference ID of the InventoryItem."
+        },
+        "itemName": {
+          "type": "string",
+          "description": "Denormalized product name at the time of transaction."
+        },
+        "itemSku": {
+          "type": "string",
+          "description": "Denormalized SKU code at the time of transaction."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["IN", "OUT", "ADJUST"],
+          "description": "Type of stock movement: IN (Barang Masuk), OUT (Barang Keluar), ADJUST (Stok Opname)."
+        },
+        "quantityChanged": {
+          "type": "integer",
+          "description": "Absolute quantity added, removed, or adjusted."
+        },
+        "previousStock": {
+          "type": "integer",
+          "description": "Stock quantity before the movement."
+        },
+        "newStock": {
+          "type": "integer",
+          "description": "Stock quantity after the movement."
+        },
+        "referenceDoc": {
+          "type": "string",
+          "description": "Reference document number (e.g., PO-2026-01, SJ-2026-08, OPN-01)."
+        },
+        "partyName": {
+          "type": "string",
+          "description": "Supplier name (for IN), recipient/customer (for OUT), or auditor (for ADJUST)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Notes or reason for the stock movement."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when movement was logged (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "itemId",
+        "itemName",
+        "itemSku",
+        "type",
+        "quantityChanged",
+        "previousStock",
+        "newStock",
+        "referenceDoc",
+        "partyName",
+        "notes",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/items/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/InventoryItem"
+      },
+      "description": "Warehouse inventory items scoped per authenticated user."
+    },
+    "/users/{userId}/movements/{movementId}": {
+      "schema": {
+        "$ref": "#/entities/StockMovement"
+      },
+      "description": "Warehouse stock movement history (inbound, outbound, opname) scoped per authenticated user."
+    }
+  }
+}
